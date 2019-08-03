@@ -6,6 +6,8 @@ import Appointment from '../models/Appointment';
 
 import Notification from '../schemas/Notification';
 
+import Cache from '../../lib/Cache';
+
 class CreateAppointmentService {
   async run({ provider_id, user_id, date }) {
     /**
@@ -76,6 +78,11 @@ class CreateAppointmentService {
       // este sim é o relacionamento
       user: provider_id,
     });
+
+    /**
+     * Invalidate cache
+     */
+    await Cache.invalidatePrefix(`user:${user.id}:appointments`);
 
     return appointment;
   }
