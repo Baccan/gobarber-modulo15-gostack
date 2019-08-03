@@ -1,12 +1,13 @@
-import { startOfHour, parseISO, isBefore, format, subHours } from 'date-fns';
-import pt from 'date-fns/locale/pt';
+import { isBefore, subHours } from 'date-fns';
+
 import Appointment from '../models/Appointment';
 import User from '../models/User';
 import File from '../models/File';
-import Notification from '../schemas/Notification';
 
 import Queue from '../../lib/Queue';
 import CancellationMail from '../jobs/CancellationMail';
+
+import CreateAppointmentService from '../services/CreateAppointmentService';
 
 class AppointmentController {
   async index(req, res) {
@@ -40,77 +41,10 @@ class AppointmentController {
   async store(req, res) {
     const { provider_id, date } = req.body;
 
-    /**
-     * Check id provider_id is provider
-     */
-    const isProvider = await User.findOne({
-      where: { id: provider_id, provider: true },
-    });
-
-    if (!isProvider) {
-      return res
-        .status(401)
-        .json({ error: 'You can only create appointments with providers' });
-    }
-
-    // parse transforma string em objeto date de javascript
-    // start of hour irá sempre pegar o inicio da hora, sem minutos e segundos
-    const hourStart = startOfHour(parseISO(date));
-
-    /**
-     * Check for past dates
-     */
-    // caso a data passada seja uma data anterior a data atual
-    if (isBefore(hourStart, new Date())) {
-      return res.status(400).json({ error: 'Past dates are not permitted' });
-    }
-
-    /**
-     * Check date availability
-     */
-    const checkAvailability = await Appointment.findOne({
-      where: {
-        provider_id,
-        canceled_at: null,
-        date: hourStart,
-      },
-    });
-
-    // caso o provider já tenha algo marcado
-    // não é possível marcar datas já ocupadas
-    if (checkAvailability) {
-      return res
-        .status(400)
-        .json({ error: 'Appointment date is not available' });
-    }
-
-    const appointment = await Appointment.create({
-      user_id: req.userId,
+    const appointment = await CreateAppointmentService.run({
       provider_id,
+      user_id: req.userId,
       date,
-    });
-
-    /**
-     * Notify appointment provider (mongodb)
-     */
-    const user = await User.findByPk(req.userId);
-    const formattedDate = format(
-      hourStart,
-      // formato da data
-      // tudo oq está em aspas simples não será considerado para a formatação
-      // "dia - seria 22ia / d'dia' - seria 22dia"
-      "'dia' dd 'de' MMMM', às' H:mm'h'",
-      // Ex: dia 22 de Junho, às 8:40h
-      { locale: pt }
-    );
-
-    await Notification.create({
-      // não é preciso armazenar quem está realizando o agendamento e nem a data
-      // Como o Discord, que ao alterar o nome ou o avatar, as msgs antigas não mudam
-      // isso é feito para se ter performance
-      content: `Novo agendamento de ${user.name} para ${formattedDate}`,
-      // este sim é o relacionamento
-      user: provider_id,
     });
 
     return res.json(appointment);
