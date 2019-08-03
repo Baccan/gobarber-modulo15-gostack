@@ -1,0 +1,26 @@
+const { resolve } = require('path')
+
+// Para gerar uma migration, deve-se utilizar o comando no terminal
+/*
+  yarn sequelize migration:create --name=create-users
+*/
+
+// Para criar a tabela
+/*
+  yarn sequelize db:migrate
+*/
+
+// Para desfacer uma migration (Apenas quando não foi enviada para outros Devs)
+// undo - ultima migration rodada / all - todas as migrations
+/*
+  yarn sequelize db:migrate:undo
+  ou
+  yarn sequelize db:migrate:all
+*/
+
+module.exports = {
+  config: resolve(__dirname, 'src', 'config', 'database.js'),
+  'models-path': resolve(__dirname, 'src', 'app', 'models'),
+  'migrations-path': resolve(__dirname, 'src', 'database', 'migrations'),
+  'seeders-path': resolve(__dirname, 'src', 'database', 'seeds'),
+}
